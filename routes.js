@@ -15,6 +15,7 @@ let state = { key: null, level:null}
 let responses = {
     duplicate_vote : (from) => `Oops!, ${from} You are not allowed to vote more than once!`,
     valid_vote : (from) => ` Thank you, ${from}, your vote has been taken`,
+    chooseValidCandidate: (from) => `Oops!, ${from}, please choose a valid candidate`,
     list_of_candidate: () => {
         let respo = showCandidates()
         respo+= `\n 0 - Cancel`
@@ -31,8 +32,11 @@ const checkValid = (arr,needle,key) => {
 }
 
 const addVote = (from,val) => {
+    if (!checkValid(candidates,val,'id')){
+            state.key = 1;
+            return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate()
+        }
     votes.push({ candidate: val, user: from})
-    console.log(votes)
     return responses.valid_vote(from)
 }
 
@@ -87,9 +91,14 @@ const showResult = () => {
     -----  Winner  ------
     Donald Trump
 
-    Created with love by Chibuike(chibuikenwa.com)
+    
     `
 }
+const footer = `
+
+  Created With ❤️ Chibuike 😎 (chibuikenwa.com)
+
+`
 
 const showHelp = () => {
     return `
@@ -129,7 +138,6 @@ router.post('/', function(req, res, next) {
                 break;
         }
     }else{
-        console.log(state)
         switch(q){
             case 1:
             result = castVote(voter)
@@ -161,7 +169,7 @@ router.post('/', function(req, res, next) {
         }    
         
     }
-    twiml.message(result);
+    twiml.message(result+'\n'+footer);
     return res.status(200).send(twiml.toString())
     
 } catch (error) {
