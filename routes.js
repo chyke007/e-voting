@@ -2,28 +2,51 @@ const express = require('express')
 const router = express.Router()
 const { MessagingResponse } = require('twilio').twiml;
 
-let votes =  []
+let votes =  [
+    {candidate: 1, user: "+23400000000"},
+    {candidate: 2, user: "+234494002233"},
+    {candidate: 1, user: "+234224940033"},
+    {candidate: 2, user: "+234494003003"},
+    {candidate: 2, user: "+234494002203"},
+    {candidate: 3, user: "+234224940030"},
+
+]
 let candidates = [
     {
-        id: 1, name:"Donald Trump & Pence"
+        id: 1, name:"Donald Trump and Pence"
     },
     {
-        id: 2, name:"Joe Biden & Kamala"
+        id: 2, name:"Joe Biden and Kamala"
+    },
+    {
+        id: 3, name:"Chi Chi and Badmus"
     },
 ]
 let state = { key: null, level:null}
 let responses = {
-    duplicate_vote : (from) => `Oops!, ${from} You are not allowed to vote more than once!`,
-    valid_vote : (from) => ` Thank you, ${from}, your vote has been taken`,
-    chooseValidCandidate: (from) => `Oops!, ${from}, please choose a valid candidate`,
+    duplicate_vote : (from) => `😕, ${from} you are not allowed to vote more than once!`,
+    valid_vote : (from) => ` Thank you, ${from}, your vote has been taken ✔️`,
+    chooseValidCandidate: (from) => `😕, ${from}, please choose a valid candidate`,
+    no_candidate:  '😕 There are no candidates now',
+    no_votes: '😕 No votes cast so far',
     list_of_candidate: () => {
         let respo = showCandidates()
-        respo+= `\n 0 - Cancel`
+        if(respo){
+
+            respo+= `\n 0 - Cancel`
+        }else{
+            respo= `\n😕 There are no candidates now \n 0 - Cancel`
+        }
         return respo
     },
     cancelVote: () => {
         state.key = null
-        return 'Voting has been cancelled'
+        return '👍 Voting has been cancelled'
+    },
+    showResult: (res) => {
+        return res.candidate.map(e => 
+            `${e.name} - ${e.percentage}% of votes cast - ${e.total} votes accumulated`
+        ).join('\n')
     }
 }
 
@@ -53,7 +76,7 @@ const castVote = (from,val) => {
 
 const showDefaultMessage = () => {
     return `
-   Welcome to E-Voter
+    💥 💥 Welcome to E-Voter 💥 💥
          --- All ---
         1 - Vote
         2 - See Candidates
@@ -69,6 +92,7 @@ const showDefaultMessage = () => {
 }
 
 const showCandidates = () => {
+    if(candidates.length === 0) return responses.no_candidate
     return `
     List of Candidates:
     \n`
@@ -77,42 +101,73 @@ const showCandidates = () => {
     })
 }
 
-//Show Result
+//Result section
+//
+const groupBy = (objectArray, property) => {
+   return objectArray.reduce((acc, obj) => {
+      const key = obj[property];
+      if (!acc[key]) {
+         acc[key] = [];
+      }
+      // Add object to list for given key's value
+      acc[key].push(obj);
+      return acc;
+   }, {});
+}
+
+const addKeys = (res) => {
+    let candidate = []
+    for(key in res){
+        candidate.push({
+            name: candidates.filter(e => e.id === Number(key))[0].name,
+            percentage: Math.round((res[key].length / votes.length) * 100),
+            total: res[key].length
+        })
+    }
+    candidate.sort((a,b) => b.total - a.total )
+    return {
+        winner: candidate[0].total && candidate[1] && candidate[0].total === candidate[1].total ? "😇 We currently have a draw!" : `🌟 ${candidate[0].name} 🌟`,
+        candidate
+    }
+}
 const showResult = () => {
+    if(votes.length === 0) return responses.no_votes
+    if(candidates.length === 0) return responses.no_candidate
+    
+    let result = groupBy(votes,'candidate');
+    result = addKeys(result)
     return `
     ---- General Statistics -----
     Total Votes cast: ${votes.length}
     Result breakdown:
     \n
+    ${ responses.showResult(result)}
 
-    Donald Trump and Pence - 65% of Votes cast
 
-
-    -----  Winner  ------
-    Donald Trump
-
-    
-    `
+    -----  Winner so far  ------
+    ${result.winner}
+    Time:    ${new Date()}
+`
 }
 const footer = `
 
-  Created With ❤️ Chibuike 😎 (chibuikenwa.com)
+  Created With ❤️ Chibuike 🔥 (chibuikenwa.com)
 
 `
 
 const showHelp = () => {
     return `
-    Welcome to E-Voter
+    💥 💥 Welcome to E-Voter 💥 💥
          --- All ---
         1 - Vote : Allows user to vote, simply
         2 - See Candidates: See all particpating candidate
         3 - See results : See the breakdown of results
 
         --- Admin --- 
-        4 - Add Candidate: Add more candiate, 
+        4 - Add Candidate: Add more candidate, 
                 a comma sepearted list to add in bulk
                 e.g joshua,Gbenga,kdkd
-        5 - Delete Candidate - Delete a candiate and their votes,
+        5 - Delete Candidate - Delete a candidate and their votes,
 
         6 - Clear Candidates
         7 - Clear Votes
@@ -124,7 +179,6 @@ router.post('/', function(req, res, next) {
     let result = null
     const q = Number(req.body.Body);
     let voter = req.body.From.split(":")[1]
-    
     try {
     
         if(state.key){
@@ -149,16 +203,16 @@ router.post('/', function(req, res, next) {
             result = showResult()
             break;
             case 4:
-            result = clearVotes(q,voter)
+            result = addCandidate()
             break;
             case 5:
-            result = clearCandidates(q,voter)
+            result = deleteCandidates()
             break;
             case 6:
-            result = addCandidate(q,voter)
+            result = clearCandidate()
             break;
             case 7:
-            result = addCandidate(q,voter)
+            result = clearVotes()
             break;
             case 8:
             result = showHelp()
