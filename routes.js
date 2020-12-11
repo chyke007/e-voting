@@ -32,12 +32,13 @@ let candidates = [
 //////////////////// Candidate Section ////////////////////
 
 /**
- * Adds more candidates to the candidates pool
+ * Adds more candidates to the candidates pool (ADMIN only)
  * @param {String} [val] - Candidates to be added
  * @return {String} Response message
  */
 const addCandidate = (val) => {
     
+    if(String(process.env.ADMIN) !== String(currentUser)) return responses.not_allowed
     if(findInState(state,4, currentUser)){
         if(String(val).length === 0) return responses.no_candidate_supplied
         let pivot = candidates.length + 1;
@@ -53,13 +54,14 @@ const addCandidate = (val) => {
 
 }
 
-/* Used to delete a specific candidate
+/* Used to delete a specific candidate - (ADMIN only)
  * @param {String} from - Voters identity
  * @param {Number} [val] - Candidate id
  * @return {String} Response message
  */
 const deleteCandidate = (from,val) => {
 
+    if(String(process.env.ADMIN) !== String(currentUser)) return responses.not_allowed
     if(candidates.length === 0) return responses.no_candidate    
     
     if(findInState(state,5, currentUser)){
@@ -92,10 +94,12 @@ const showCandidates = () => {
 }
 
 /**
- * Deletes all available candidates
+ * Deletes all available candidates - (ADMIN only)
  * @return {String} Response message
  */
 const clearCandidates = () => {
+    if(String(process.env.ADMIN) !== String(currentUser)) return responses.not_allowed
+
     if(candidates.length === 0) return responses.no_candidate
 
     if(findInState(state,6, currentUser)){
@@ -155,10 +159,12 @@ const castVote = (from,val) => {
 
 
 /**
- * Deletes all available votes
+ * Deletes all available votes - (ADMIN only)
  * @return {String} Response message
  */
 const clearVotes = () => {
+    if(String(process.env.ADMIN) !== String(currentUser)) return responses.not_allowed
+    
     if(votes.length === 0) return responses.no_votes
 
     if(findInState(state,7, currentUser)){
