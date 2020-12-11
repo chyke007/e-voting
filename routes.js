@@ -41,10 +41,11 @@ const addCandidate = (val) => {
     if(String(process.env.ADMIN) !== String(currentUser)) return responses.not_allowed
     if(findInState(state,4, currentUser)){
         if(String(val).length === 0) return responses.no_candidate_supplied
-        let pivot = candidates.length + 1;
+        let pivot = candidates.length === 0 ? 1 : Number(candidates[candidates.length-1].id) + 1;
         let newCand = String(val).split(',').map((e,i) => {
             return {id: pivot + i, name: e}
         })
+        state = removeInState(state,4,currentUser)
         candidates = [...candidates,...newCand]
         return responses.added_candidates 
      }else{
@@ -67,9 +68,9 @@ const deleteCandidate = (from,val) => {
     if(findInState(state,5, currentUser)){
             //Checks if candidate supplied by admin is a valid candidate
             if (!checkValid(candidates,val,'id')){
-                state.push({key: 5, user: currentUser})
                 return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate(showCandidates)
             }
+            state = removeInState(state,5,currentUser)
             candidates = candidates.filter(e => e.id !== val)
             votes = votes.filter(e => e.candidate !== val)
             return responses.deleted_candidate 
@@ -89,7 +90,7 @@ const showCandidates = () => {
     List of Candidates:
     \n`
     +candidates.map((e,i) => {
-        return `\n ${i+1} - ${e.name}`
+        return `\n ${e.id} - ${e.name}`
     })
 }
 
@@ -104,6 +105,7 @@ const clearCandidates = () => {
 
     if(findInState(state,6, currentUser)){
         candidates = []
+        state = removeInState(state,6,currentUser)
         return responses.deleted_candidates 
      }else{
          state.push({key:6 , user: currentUser})
@@ -127,11 +129,11 @@ const clearCandidates = () => {
 
 const addVote = (from,val) => {
     //Checks if candidate supplied by voter is a valid candidate
-    if (!checkValid(candidates,val,'id')){
-            state.push({key: 1, user: currentUser})
-            return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate(showCandidates)
-        }
+    if (!checkValid(candidates,val,'id'))
+        return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate(showCandidates)
+
     votes.push({ candidate: val, user: from})
+    state = removeInState(state,1,currentUser)
     return responses.valid_vote(from)
 }
 
@@ -146,12 +148,11 @@ const castVote = (from,val) => {
     //Checks if user has already casted vote
     if (checkValid(votes,from,'user')) return responses.duplicate_vote(from)
     if(findInState(state,1, currentUser)){
-       state = removeInState(state,1,currentUser)
-       if(candidates.length ===0) return responses.no_candidate;
+       if(candidates.length === 0) return responses.no_candidate;
        return addVote(from,val)
     }else{
 
-        if(candidates.length ===0) return responses.no_candidate;
+        if(candidates.length === 0) return responses.no_candidate;
         state.push({key: 1, user: currentUser})
         return responses.list_of_candidate(showCandidates)
    }
@@ -164,11 +165,12 @@ const castVote = (from,val) => {
  */
 const clearVotes = () => {
     if(String(process.env.ADMIN) !== String(currentUser)) return responses.not_allowed
-    
+
     if(votes.length === 0) return responses.no_votes
 
     if(findInState(state,7, currentUser)){
         votes = []
+        state = removeInState(state,7,currentUser)
         return responses.deleted_votes 
      }else{
          state.push({key: 7, user:currentUser})
@@ -302,25 +304,40 @@ router.post('/', function(req, res, next) {
                     state = removeInState(state,1,currentUser)
                     result =  responses.cancelVote
                 }else{
-                    
                     result =  castVote(voter,Number(q));
                 }
                 break;
             case 4:
-                q === 0 ? result =  responses.cancelAddCandidates : result =  addCandidate(q);
-                state = removeInState(state,4,currentUser)
+                if(Number(q) === 0){
+                    state = removeInState(state,4,currentUser)
+                    result =  responses.cancelAddCandidates
+                }else{
+                    result = addCandidate(q);
+                }
                 break;
            case 5:
-                q === 0 ? result =  responses.cancelDeleteCandidate : result =  deleteCandidate(voter,Number(q));
-                state = removeInState(state,5,currentUser)
-                break;
+                if(Number(q) === 0){
+                    state = removeInState(state,5,currentUser)
+                    result =  responses.cancelDeleteCandidate
+                }else{
+                    result = deleteCandidate(voter,Number(q));
+                }
+               break;
            case 6:
-                Number(q) === 1 ? result = clearCandidates() : result =  responses.cancelDeleteCandidates;
-                state = removeInState(state,6,currentUser)
+                if(Number(q) === 1){
+                    result =  clearCandidates()
+                }else{
+                    result = responses.cancelDeleteCandidates;
+                    state = removeInState(state,6,currentUser)
+                }
                 break;
             case 7:
-                Number(q) === 1 ? result = clearVotes() : result =  responses.cancelDeleteVotes;
-                state = removeInState(state,7,currentUser)
+                if(Number(q) === 1){
+                    result =  clearVotes()
+                }else{
+                    result = responses.cancelDeleteVotes;
+                    state = removeInState(state,7,currentUser)
+                }
                 break;
             default:
                 result = showHelp()
