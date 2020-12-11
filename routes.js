@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { MessagingResponse } = require('twilio').twiml;
 const responses = require("./responses")
+const { checkValid, groupBy} = require("./utility")
 
 
 let state = { key: null}
@@ -27,16 +28,44 @@ let candidates = [
     },
 ]
 
+//////////////////// Candidate Section ////////////////////
+
 /**
- * Checks if a value exist in an array
- * @param {Array} arr - Array to search in
- * @param {String} needle - Property in object to search in
- * @param {String} key - Value to find in array
- * @return {Boolean} True if needle found or false if not found 
+ * Shows all available candidates
+ * @return {String} Response message
  */
-const checkValid = (arr,needle,key) => {
-    return arr.find(x => x[key] === needle);
+const showCandidates = () => {
+    if(candidates.length === 0) return responses.no_candidate
+    return `
+    List of Candidates:
+    \n`
+    +candidates.map((e,i) => {
+        return `\n ${i+1} - ${e.name}`
+    })
 }
+
+/**
+ * Deletes all available candidates
+ * @return {String} Response message
+ */
+const clearCandidates = () => {
+    if(candidates.length === 0) return responses.no_candidate
+
+    if(state.key === 6){
+        candidates = []
+        return responses.deleted_candidates 
+     }else{
+         state.key = 6
+         return responses.confirm_delete_of_candidates()
+    }
+
+}
+
+/////////////////// Candidate Section Ends /////////////////////
+
+
+//////////////// Vote Section  /////////////////////////
+
 
 /**
  * Adds a users vote
@@ -48,6 +77,7 @@ const checkValid = (arr,needle,key) => {
 const addVote = (from,val) => {
     //Checks if candidate supplied by voter is a valid candidate
     if (!checkValid(candidates,val,'id')){
+        if(candidates.length ===0) return responses.no_candidate;
             state.key = 1;
             return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate()
         }
@@ -63,72 +93,37 @@ const addVote = (from,val) => {
  * @return {String} Response message
  */
 const castVote = (from,val) => { 
+
+    
     //Checks if user has already casted vote
     if (checkValid(votes,from,'user')) return responses.duplicate_vote(from)
-    
    if(state.key === 1){
        state.key = null
        return addVote(from,val)
     }else{
+        
+        if(candidates.length ===0) return responses.no_candidate;
         state.key = 1
         return responses.list_of_candidate(showCandidates)
    }
 }
 
+
 /**
- * Shows default message
+ * Deletes all available votes
  * @return {String} Response message
  */
+const clearVotes = () => {
+    if(votes.length === 0) return responses.no_votes
 
-const showDefaultMessage = () => {
-    return `
-    💥 💥 Welcome to E-Voter 💥 💥
-         --- All ---
-        1 - Vote
-        2 - See Candidates
-        3 - See results
+    if(state.key === 7){
+        votes = []
+        return responses.deleted_votes 
+     }else{
+         state.key = 7
+         return responses.confirm_delete_of_votes()
+    }
 
-        --- Admin --- 
-        4 - Add Candidate
-        5 - Delete Candidate
-        6 - Clear Candidates
-        7 - Clear Votes
-        8 - Help
-    `
-}
-
-
-/**
- * Shows all avalibale candidates
- * @return {String} Response message
- */
-const showCandidates = () => {
-    if(candidates.length === 0) return responses.no_candidate
-    return `
-    List of Candidates:
-    \n`
-    +candidates.map((e,i) => {
-        return `\n ${i+1} - ${e.name}`
-    })
-}
-
-/**
- * Groups an array by a property values
- * @param {String} objectArray - Array to be grouped
- * @param {Number} property - Property to be grouped by
- * @return {Array} Returns an array  grouped by property value
- */
-
-const groupBy = (objectArray, property) => {
-   return objectArray.reduce((acc, obj) => {
-      const key = obj[property];
-      if (!acc[key]) {
-         acc[key] = [];
-      }
-      // Add object to list for given key's value
-      acc[key].push(obj);
-      return acc;
-   }, {});
 }
 
 /**
@@ -178,12 +173,32 @@ const showResult = () => {
 `
 }
 
+//////////////// Vote Section Ends  /////////////////////////
 
-const footer = `
 
-  Created With ❤️ Chibuike 🔥 (chibuikenwa.com)
+/**
+ * Shows default message
+ * @return {String} Response message
+ */
 
-`
+const showDefaultMessage = () => {
+    return `
+    💥 💥 Welcome to E-Voter 💥 💥
+         --- All ---
+        1 - Vote
+        2 - See Candidates
+        3 - See results
+
+        --- Admin --- 
+        4 - Add Candidate
+        5 - Delete Candidate
+        6 - Clear Candidates
+        7 - Clear Votes
+        8 - Help
+    `
+}
+
+
 /**
  * Used to show help to users
  * @return {String} Response message
@@ -208,6 +223,13 @@ const showHelp = () => {
     `
 }
 
+
+const footer = `
+
+  Created With ❤️ by Chibuike 🔥 (chibuikenwa.com)
+
+`
+
 router.post('/', function(req, res, next) {
     const twiml = new MessagingResponse();
     let result = null
@@ -221,11 +243,19 @@ router.post('/', function(req, res, next) {
             case 1:
                 if(q === 0){
                     state.key = null ;
-                    result =  responses.cancelVote()
+                    result =  responses.cancelVote
                 }else{
 
                    result =  castVote(voter,q);
                 }
+                break;
+            case 6:
+                q === 1 ? result = clearCandidates() : result =  responses.cancelDeleteCandidates;
+                state.key = null;
+                break;
+            case 7:
+                q === 1 ? result = clearVotes() : result =  responses.cancelDeleteVotes;
+                state.key = null;
                 break;
             default:
                 result = showHelp()
@@ -246,10 +276,10 @@ router.post('/', function(req, res, next) {
             result = addCandidate()
             break;
             case 5:
-            result = deleteCandidates()
+            result = deleteCandidate()
             break;
             case 6:
-            result = clearCandidate()
+            result = clearCandidates()
             break;
             case 7:
             result = clearVotes()
