@@ -2,10 +2,9 @@ const express = require('express')
 const router = express.Router()
 const { MessagingResponse } = require('twilio').twiml;
 const responses = require("./responses")
-const { checkValid, groupBy} = require("./utility")
+const { checkValid, findInState,groupBy,removeInState} = require("./utility")
 
-
-let state = { key: null, user: null}
+let state = []
 let currentUser = null;
 let votes =  [
     {candidate: 1, user: "+23400000000"},
@@ -29,15 +28,17 @@ let candidates = [
     },
 ]
 
+
 //////////////////// Candidate Section ////////////////////
 
 /**
  * Adds more candidates to the candidates pool
+ * @param {String} [val] - Candidates to be added
  * @return {String} Response message
  */
 const addCandidate = (val) => {
     
-    if(state.key === 4 && state.user == currentUser ){
+    if(findInState(state,4, currentUser)){
         if(String(val).length === 0) return responses.no_candidate_supplied
         let pivot = candidates.length + 1;
         let newCand = String(val).split(',').map((e,i) => {
@@ -46,13 +47,36 @@ const addCandidate = (val) => {
         candidates = [...candidates,...newCand]
         return responses.added_candidates 
      }else{
-         state.key = 4
-         state.user = currentUser
+         state.push({key:4, user:currentUser})
          return responses.confirm_add_of_candidates()
     }
 
 }
 
+/* Used to delete a specific candidate
+ * @param {String} from - Voters identity
+ * @param {Number} [val] - Candidate id
+ * @return {String} Response message
+ */
+const deleteCandidate = (from,val) => {
+
+    if(candidates.length === 0) return responses.no_candidate    
+    
+    if(findInState(state,5, currentUser)){
+            //Checks if candidate supplied by admin is a valid candidate
+            if (!checkValid(candidates,val,'id')){
+                state.push({key: 5, user: currentUser})
+                return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate(showCandidates)
+            }
+            candidates = candidates.filter(e => e.id !== val)
+            votes = votes.filter(e => e.candidate !== val)
+            return responses.deleted_candidate 
+    }else{
+            state.push({key:5, user: currentUser})
+            return responses.confirm_delete_of_candidate(showCandidates)
+   }
+    
+}
 /**
  * Shows all available candidates
  * @return {String} Response message
@@ -74,12 +98,11 @@ const showCandidates = () => {
 const clearCandidates = () => {
     if(candidates.length === 0) return responses.no_candidate
 
-    if(state.key === 6 && state.user == currentUser ){
+    if(findInState(state,6, currentUser)){
         candidates = []
         return responses.deleted_candidates 
      }else{
-         state.key = 6
-         state.user = currentUser
+         state.push({key:6 , user: currentUser})
          return responses.confirm_delete_of_candidates()
     }
 
@@ -101,8 +124,7 @@ const clearCandidates = () => {
 const addVote = (from,val) => {
     //Checks if candidate supplied by voter is a valid candidate
     if (!checkValid(candidates,val,'id')){
-            state.key = 1;
-            state.user = currentUser;
+            state.push({key: 1, user: currentUser})
             return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate(showCandidates)
         }
     votes.push({ candidate: val, user: from})
@@ -117,20 +139,16 @@ const addVote = (from,val) => {
  * @return {String} Response message
  */
 const castVote = (from,val) => { 
-
-    
     //Checks if user has already casted vote
     if (checkValid(votes,from,'user')) return responses.duplicate_vote(from)
-   if(state.key === 1 && state.user == currentUser ){
-       state.key = null
-       state.user = null
+    if(findInState(state,1, currentUser)){
+       state = removeInState(state,1,currentUser)
        if(candidates.length ===0) return responses.no_candidate;
        return addVote(from,val)
     }else{
-        
+
         if(candidates.length ===0) return responses.no_candidate;
-        state.key = 1
-        state.user = currentUser
+        state.push({key: 1, user: currentUser})
         return responses.list_of_candidate(showCandidates)
    }
 }
@@ -143,12 +161,11 @@ const castVote = (from,val) => {
 const clearVotes = () => {
     if(votes.length === 0) return responses.no_votes
 
-    if(state.key === 7 && state.user == currentUser ){
+    if(findInState(state,7, currentUser)){
         votes = []
         return responses.deleted_votes 
      }else{
-         state.key = 7
-         state.currentUser
+         state.push({key: 7, user:currentUser})
          return responses.confirm_delete_of_votes()
     }
 
@@ -245,11 +262,13 @@ const showHelp = () => {
         4 - Add Candidate: Add more candidate, 
                 a comma sepearted list to add in bulk
                 e.g joshua,Gbenga,kdkd
-        5 - Delete Candidate - Delete a candidate and their votes,
+        5 - Delete Candidate - Delete a candidate and their votes
 
         6 - Clear Candidates - Removes all candidates from the application
         7 - Clear Votes - Removes all votes cast so far from the application
         8 - Help - Shows this help message
+
+        The ball is in your court now ✌️
     `
 }
 
@@ -269,34 +288,33 @@ router.post('/', function(req, res, next) {
     let voter = req.body.From.split(":")[1]
     currentUser = voter;
     try {
-    
-        if(state.key && state.user == currentUser ){
+        if(state.length !== 0 && state.find(e => e.user == currentUser && e.key) ){
         
-          switch(state.key){
+          switch(state.find(e => e.user == currentUser && e.key).key){
             case 1:
                 if(Number(q) === 0){
-                    state.key = null;
-                    state.user = null;
+                    state = removeInState(state,1,currentUser)
                     result =  responses.cancelVote
                 }else{
-
-                   result =  castVote(voter,Number(q));
+                    
+                    result =  castVote(voter,Number(q));
                 }
                 break;
             case 4:
                 q === 0 ? result =  responses.cancelAddCandidates : result =  addCandidate(q);
-                state.key = null;
-                state.user = null;
+                state = removeInState(state,4,currentUser)
                 break;
-            case 6:
+           case 5:
+                q === 0 ? result =  responses.cancelDeleteCandidate : result =  deleteCandidate(voter,Number(q));
+                state = removeInState(state,5,currentUser)
+                break;
+           case 6:
                 Number(q) === 1 ? result = clearCandidates() : result =  responses.cancelDeleteCandidates;
-                state.key = null;
-                state.user = null;
+                state = removeInState(state,6,currentUser)
                 break;
             case 7:
                 Number(q) === 1 ? result = clearVotes() : result =  responses.cancelDeleteVotes;
-                state.key = null;
-                state.user = null;
+                state = removeInState(state,7,currentUser)
                 break;
             default:
                 result = showHelp()
@@ -317,7 +335,7 @@ router.post('/', function(req, res, next) {
             result = addCandidate()
             break;
             case 5:
-            result = deleteCandidate()
+            result = deleteCandidate(voter)
             break;
             case 6:
             result = clearCandidates()
