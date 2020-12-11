@@ -5,7 +5,8 @@ const responses = require("./responses")
 const { checkValid, groupBy} = require("./utility")
 
 
-let state = { key: null}
+let state = { key: null, user: null}
+let currentUser = null;
 let votes =  [
     {candidate: 1, user: "+23400000000"},
     {candidate: 2, user: "+234494002233"},
@@ -31,6 +32,28 @@ let candidates = [
 //////////////////// Candidate Section ////////////////////
 
 /**
+ * Adds more candidates to the candidates pool
+ * @return {String} Response message
+ */
+const addCandidate = (val) => {
+    
+    if(state.key === 4 && state.user == currentUser ){
+        if(String(val).length === 0) return responses.no_candidate_supplied
+        let pivot = candidates.length + 1;
+        let newCand = String(val).split(',').map((e,i) => {
+            return {id: pivot + i, name: e}
+        })
+        candidates = [...candidates,...newCand]
+        return responses.added_candidates 
+     }else{
+         state.key = 4
+         state.user = currentUser
+         return responses.confirm_add_of_candidates()
+    }
+
+}
+
+/**
  * Shows all available candidates
  * @return {String} Response message
  */
@@ -51,11 +74,12 @@ const showCandidates = () => {
 const clearCandidates = () => {
     if(candidates.length === 0) return responses.no_candidate
 
-    if(state.key === 6){
+    if(state.key === 6 && state.user == currentUser ){
         candidates = []
         return responses.deleted_candidates 
      }else{
          state.key = 6
+         state.user = currentUser
          return responses.confirm_delete_of_candidates()
     }
 
@@ -77,9 +101,9 @@ const clearCandidates = () => {
 const addVote = (from,val) => {
     //Checks if candidate supplied by voter is a valid candidate
     if (!checkValid(candidates,val,'id')){
-        if(candidates.length ===0) return responses.no_candidate;
             state.key = 1;
-            return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate()
+            state.user = currentUser;
+            return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate(showCandidates)
         }
     votes.push({ candidate: val, user: from})
     return responses.valid_vote(from)
@@ -97,13 +121,16 @@ const castVote = (from,val) => {
     
     //Checks if user has already casted vote
     if (checkValid(votes,from,'user')) return responses.duplicate_vote(from)
-   if(state.key === 1){
+   if(state.key === 1 && state.user == currentUser ){
        state.key = null
+       state.user = null
+       if(candidates.length ===0) return responses.no_candidate;
        return addVote(from,val)
     }else{
         
         if(candidates.length ===0) return responses.no_candidate;
         state.key = 1
+        state.user = currentUser
         return responses.list_of_candidate(showCandidates)
    }
 }
@@ -116,11 +143,12 @@ const castVote = (from,val) => {
 const clearVotes = () => {
     if(votes.length === 0) return responses.no_votes
 
-    if(state.key === 7){
+    if(state.key === 7 && state.user == currentUser ){
         votes = []
         return responses.deleted_votes 
      }else{
          state.key = 7
+         state.currentUser
          return responses.confirm_delete_of_votes()
     }
 
@@ -176,6 +204,8 @@ const showResult = () => {
 //////////////// Vote Section Ends  /////////////////////////
 
 
+//////////////// Display Messages //////////////////////////
+
 /**
  * Shows default message
  * @return {String} Response message
@@ -207,8 +237,8 @@ const showHelp = () => {
     return `
     💥 💥 Welcome to E-Voter 💥 💥
          --- All ---
-        1 - Vote : Allows user to vote, simply
-        2 - See Candidates: See all particpating candidate
+        1 - Vote : Allows user to vote by entering candidate id
+        2 - See Candidates: See all participating candidate
         3 - See results : See the breakdown of results
 
         --- Admin --- 
@@ -217,9 +247,9 @@ const showHelp = () => {
                 e.g joshua,Gbenga,kdkd
         5 - Delete Candidate - Delete a candidate and their votes,
 
-        6 - Clear Candidates
-        7 - Clear Votes
-        8 - Help
+        6 - Clear Candidates - Removes all candidates from the application
+        7 - Clear Votes - Removes all votes cast so far from the application
+        8 - Help - Shows this help message
     `
 }
 
@@ -230,39 +260,50 @@ const footer = `
 
 `
 
+/////////////// Display Messages Ends ///////////////////
+
 router.post('/', function(req, res, next) {
     const twiml = new MessagingResponse();
     let result = null
-    const q = Number(req.body.Body);
+    const q = req.body.Body;
     let voter = req.body.From.split(":")[1]
+    currentUser = voter;
     try {
     
-        if(state.key){
+        if(state.key && state.user == currentUser ){
         
           switch(state.key){
             case 1:
-                if(q === 0){
-                    state.key = null ;
+                if(Number(q) === 0){
+                    state.key = null;
+                    state.user = null;
                     result =  responses.cancelVote
                 }else{
 
-                   result =  castVote(voter,q);
+                   result =  castVote(voter,Number(q));
                 }
                 break;
-            case 6:
-                q === 1 ? result = clearCandidates() : result =  responses.cancelDeleteCandidates;
+            case 4:
+                q === 0 ? result =  responses.cancelAddCandidates : result =  addCandidate(q);
                 state.key = null;
+                state.user = null;
+                break;
+            case 6:
+                Number(q) === 1 ? result = clearCandidates() : result =  responses.cancelDeleteCandidates;
+                state.key = null;
+                state.user = null;
                 break;
             case 7:
-                q === 1 ? result = clearVotes() : result =  responses.cancelDeleteVotes;
+                Number(q) === 1 ? result = clearVotes() : result =  responses.cancelDeleteVotes;
                 state.key = null;
+                state.user = null;
                 break;
             default:
                 result = showHelp()
                 break;
         }
     }else{
-        switch(q){
+        switch(Number(q)){
             case 1:
             result = castVote(voter)
             break;
