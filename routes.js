@@ -1,7 +1,10 @@
 const express = require('express')
 const router = express.Router()
 const { MessagingResponse } = require('twilio').twiml;
+const responses = require("./responses")
 
+
+let state = { key: null}
 let votes =  [
     {candidate: 1, user: "+23400000000"},
     {candidate: 2, user: "+234494002233"},
@@ -11,6 +14,7 @@ let votes =  [
     {candidate: 3, user: "+234224940030"},
 
 ]
+
 let candidates = [
     {
         id: 1, name:"Donald Trump and Pence"
@@ -22,39 +26,27 @@ let candidates = [
         id: 3, name:"Chi Chi and Badmus"
     },
 ]
-let state = { key: null, level:null}
-let responses = {
-    duplicate_vote : (from) => `😕, ${from} you are not allowed to vote more than once!`,
-    valid_vote : (from) => ` Thank you, ${from}, your vote has been taken ✔️`,
-    chooseValidCandidate: (from) => `😕, ${from}, please choose a valid candidate`,
-    no_candidate:  '😕 There are no candidates now',
-    no_votes: '😕 No votes cast so far',
-    list_of_candidate: () => {
-        let respo = showCandidates()
-        if(respo){
 
-            respo+= `\n 0 - Cancel`
-        }else{
-            respo= `\n😕 There are no candidates now \n 0 - Cancel`
-        }
-        return respo
-    },
-    cancelVote: () => {
-        state.key = null
-        return '👍 Voting has been cancelled'
-    },
-    showResult: (res) => {
-        return res.candidate.map(e => 
-            `${e.name} - ${e.percentage}% of votes cast - ${e.total} votes accumulated`
-        ).join('\n')
-    }
-}
-
+/**
+ * Checks if a value exist in an array
+ * @param {Array} arr - Array to search in
+ * @param {String} needle - Property in object to search in
+ * @param {String} key - Value to find in array
+ * @return {Boolean} True if needle found or false if not found 
+ */
 const checkValid = (arr,needle,key) => {
     return arr.find(x => x[key] === needle);
 }
 
+/**
+ * Adds a users vote
+ * @param {String} from - Voters identity
+ * @param {Number} val - Candidate Identity
+ * @return {String} Response message
+ */
+
 const addVote = (from,val) => {
+    //Checks if candidate supplied by voter is a valid candidate
     if (!checkValid(candidates,val,'id')){
             state.key = 1;
             return responses.chooseValidCandidate(from) + '\n' +responses.list_of_candidate()
@@ -63,16 +55,30 @@ const addVote = (from,val) => {
     return responses.valid_vote(from)
 }
 
+
+/**
+ * Used to cast users vote
+ * @param {String} from - Voters identity
+ * @param {Number} [val] - Candidate id
+ * @return {String} Response message
+ */
 const castVote = (from,val) => { 
-   if (checkValid(votes,from,'user')) return responses.duplicate_vote(from)
+    //Checks if user has already casted vote
+    if (checkValid(votes,from,'user')) return responses.duplicate_vote(from)
+    
    if(state.key === 1){
-        state.key = null
-        return addVote(from,val)
-   }else{
+       state.key = null
+       return addVote(from,val)
+    }else{
         state.key = 1
-        return responses.list_of_candidate()
+        return responses.list_of_candidate(showCandidates)
    }
 }
+
+/**
+ * Shows default message
+ * @return {String} Response message
+ */
 
 const showDefaultMessage = () => {
     return `
@@ -91,6 +97,11 @@ const showDefaultMessage = () => {
     `
 }
 
+
+/**
+ * Shows all avalibale candidates
+ * @return {String} Response message
+ */
 const showCandidates = () => {
     if(candidates.length === 0) return responses.no_candidate
     return `
@@ -101,8 +112,13 @@ const showCandidates = () => {
     })
 }
 
-//Result section
-//
+/**
+ * Groups an array by a property values
+ * @param {String} objectArray - Array to be grouped
+ * @param {Number} property - Property to be grouped by
+ * @return {Array} Returns an array  grouped by property value
+ */
+
 const groupBy = (objectArray, property) => {
    return objectArray.reduce((acc, obj) => {
       const key = obj[property];
@@ -115,7 +131,13 @@ const groupBy = (objectArray, property) => {
    }, {});
 }
 
-const addKeys = (res) => {
+/**
+ * Used to format response
+ * @param {Array} res - Array of votes grouped by candidates id
+ * @return {Object} Response message
+ */
+
+const formatResult = (res) => {
     let candidate = []
     for(key in res){
         candidate.push({
@@ -130,12 +152,18 @@ const addKeys = (res) => {
         candidate
     }
 }
+
+/**
+ * Shows results of votes cast
+ * @return {String} Response message
+ */
+
 const showResult = () => {
     if(votes.length === 0) return responses.no_votes
     if(candidates.length === 0) return responses.no_candidate
     
     let result = groupBy(votes,'candidate');
-    result = addKeys(result)
+    result = formatResult(result)
     return `
     ---- General Statistics -----
     Total Votes cast: ${votes.length}
@@ -149,12 +177,17 @@ const showResult = () => {
     Time:    ${new Date()}
 `
 }
+
+
 const footer = `
 
   Created With ❤️ Chibuike 🔥 (chibuikenwa.com)
 
 `
-
+/**
+ * Used to show help to users
+ * @return {String} Response message
+ */
 const showHelp = () => {
     return `
     💥 💥 Welcome to E-Voter 💥 💥
@@ -174,6 +207,7 @@ const showHelp = () => {
         8 - Help
     `
 }
+
 router.post('/', function(req, res, next) {
     const twiml = new MessagingResponse();
     let result = null
@@ -185,7 +219,13 @@ router.post('/', function(req, res, next) {
         
           switch(state.key){
             case 1:
-                result = q === 0 ? responses.cancelVote() :castVote(voter,q);
+                if(q === 0){
+                    state.key = null ;
+                    result =  responses.cancelVote()
+                }else{
+
+                   result =  castVote(voter,q);
+                }
                 break;
             default:
                 result = showHelp()
