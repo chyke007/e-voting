@@ -1,7 +1,7 @@
 let responses = {
-    duplicate_vote : (from) => `😕, ${from} you are not allowed to vote more than once!`,
+    duplicate_vote : (from) => `😕 ${from} you are not allowed to vote more than once!`,
     valid_vote : (from) => ` Thank you, ${from}, your vote has been taken ✔️`,
-    chooseValidCandidate: (from) => `😕, ${from}, please choose a valid candidate`,
+    chooseValidCandidate: (from) => `😕 ${from}, please choose a valid candidate`,
     no_candidate:  '😕 There are no candidates now',
     no_candidate_supplied: '😕 No candidate supplied, please supply at least one',
     no_votes: '😕 No votes cast so far',
@@ -9,7 +9,8 @@ let responses = {
     deleted_candidate: ' 👍 Candidate has been removed',
     deleted_candidates: ' 👍 All Candidates have been removed',
     deleted_votes: ' 👍 All Votes have been removed',
-    not_allowed: ' 👿 👎 You are not authorized to perform our this action!',
+    not_allowed: ' 👿 👎 You are not authorized to perform this action!',
+    draw: '😇 We currently have a draw!',
     list_of_candidate: (showCandidates) => {
         let respo = showCandidates()
         respo+= `\n 0 - Cancel`

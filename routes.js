@@ -12,20 +12,16 @@ let votes =  [
     {candidate: 1, user: "+234224940033"},
     {candidate: 2, user: "+234494003003"},
     {candidate: 2, user: "+234494002203"},
-    {candidate: 3, user: "+234224940030"},
 
 ]
 
 let candidates = [
     {
-        id: 1, name:"Donald Trump and Pence"
+        id: 1, name:"Donald Trump and Mike Pence"
     },
     {
-        id: 2, name:"Joe Biden and Kamala"
-    },
-    {
-        id: 3, name:"Chi Chi and Badmus"
-    },
+        id: 2, name:"Joe Biden and Kamala Harris"
+    }
 ]
 
 
@@ -189,14 +185,15 @@ const formatResult = (res) => {
     let candidate = []
     for(key in res){
         candidate.push({
-            name: candidates.filter(e => e.id === Number(key))[0].name,
+            name: candidates.find(e => Number(e.id) === Number(key)).name,
             percentage: Math.round((res[key].length / votes.length) * 100),
             total: res[key].length
         })
     }
+    console.log(candidate)
     candidate.sort((a,b) => b.total - a.total )
     return {
-        winner: candidate[0].total && candidate[1] && candidate[0].total === candidate[1].total ? "😇 We currently have a draw!" : `🌟 ${candidate[0].name} 🌟`,
+        winner: candidate[0].total && candidate[1] && candidate[0].total === candidate[1].total ? responses.draw : `🌟 ${candidate[0].name} 🌟`,
         candidate
     }
 }
@@ -238,7 +235,7 @@ const showResult = () => {
 
 const showDefaultMessage = () => {
     return `
-    💥 💥 Welcome to E-Voter 💥 💥
+    💥 Welcome to E-Voter 💥
          --- All ---
         1 - Vote
         2 - See Candidates
@@ -260,21 +257,21 @@ const showDefaultMessage = () => {
  */
 const showHelp = () => {
     return `
-    💥 💥 Welcome to E-Voter 💥 💥
+    💥 Welcome to E-Voter 💥
          --- All ---
-        1 - Vote : Allows user to vote by entering candidate id
+        1 - Vote: Allows user to vote by entering candidate id
         2 - See Candidates: See all participating candidate
-        3 - See results : See the breakdown of results
+        3 - See results: See the breakdown of results
 
         --- Admin --- 
         4 - Add Candidate: Add more candidate, 
                 a comma sepearted list to add in bulk
                 e.g joshua,Gbenga,kdkd
-        5 - Delete Candidate - Delete a candidate and their votes
+        5 - Delete Candidate: Delete a candidate and their votes
 
-        6 - Clear Candidates - Removes all candidates from the application
-        7 - Clear Votes - Removes all votes cast so far from the application
-        8 - Help - Shows this help message
+        6 - Clear Candidates: Removes all candidates from the application
+        7 - Clear Votes: Removes all votes cast so far from the application
+        8 - Help: Shows this help message
 
         The ball is in your court now ✌️
     `
