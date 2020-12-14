@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <a href="https://youtu.be/xls_7abY27I"><img src="https://github.com/chyke007/e-voting/raw/master/preview.png" alt="Youtube Demo" title="Youtube Demo" width="200"></a>
+  <a href="https://youtu.be/xls_7abY27I"><img src="https://github.com/chyke007/e-voting/raw/master/preview.png" alt="Youtube Demo" title="Youtube Demo" width="600"></a>
   <br>
   E-Voter
   <br>
