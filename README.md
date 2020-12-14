@@ -1,15 +1,17 @@
 <h1 align="center">
-    E-Voter
+  <br>
+  <a href="https://youtu.be/xls_7abY27I"><img src="https://github.com/chyke007/e-voting/raw/master/preview.png" alt="Youtube Demo" title="Youtube Demo" width="200"></a>
+  <br>
+  E-Voter
   <br>
 </h1>
-
 <h4 align="center">E-Voter, is a WhatsApp chatbot voting application using NodeJs and Twilio .</h4>
 
 <p align="center">
   <a href="#key-features">Key Features</a> •
   <a href="#how-to-use">How To Use</a> •
   <a href="#credits">Credits</a> •
-  <a href="#related">Related</a> •
+  <a href="#you-may-also-like">Related</a> •
   <a href="#license">License</a>
 </p>
 
@@ -66,11 +68,11 @@ This application uses the following open source packages:
 	<img src="https://c5.patreon.com/external/logo/become_a_patron_button@2x.png" width="160">
 </a>
 
-## You may also like...
+## You may also like
 
 - [PC](https://github.com/chyke007/pc) - A Project crashing software for project management
 - [Cinema](https://github.com/chyke007/cinemaapp) - A cinema app
-- [Yum-Food](https://github.com/chyke007/Yum-food) - A
+- [Yum-Food](https://github.com/chyke007/Yum-food) - A Food ordering app
 
 ## License
 
